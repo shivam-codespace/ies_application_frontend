@@ -1,4 +1,6 @@
+ 
 import { useState } from "react";
+import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import {
   Home,
@@ -11,16 +13,19 @@ import {
   Settings,
   ChevronDown,
   ChevronRight,
+  User,
 } from "lucide-react";
 
-const sections = [
-  { title: "Dashboard", icon: Home, path: "/" },
+// Admin menu (roleId = 1)
+const adminSections = [
+  { title: "Dashboard", icon: Home, path: "/admin/dashboard" },
+  { title: "My Profile", icon: User, path: "/profile" },
   {
-    title: "Application Registration",
+    title: "Application Management",
     icon: FileText,
     subsections: [
+      { name: "View All Applications", path: "/view-application" },
       { name: "Create Application", path: "/create-application" },
-      { name: "View Application", path: "/view-application" },
     ],
   },
   {
@@ -50,7 +55,7 @@ const sections = [
   },
   { title: "Benefit Issuance", icon: CreditCard, path: "/benefit-issuance" },
   { title: "Reports", icon: BarChart, path: "/reports" },
-  {
+    {
     title: "Admin",
     icon: Settings,
     subsections: [
@@ -62,8 +67,54 @@ const sections = [
   },
 ];
 
+// User menu (roleId = 2)
+const userSections = [
+  { title: "Dashboard", icon: Home, path: "/dashboard/:email" },
+  { title: "My Profile", icon: User, path: "/profile" },
+  {
+    title: "My Applications",
+    icon: FileText,
+    subsections: [
+      { name: "Create Application", path: "/create-application" },
+      { name: "View My Applications", path: "/view-application" },
+    ],
+  },
+  {
+    title: "Data Collection",
+    icon: Database,
+    subsections: [
+      { name: "Plan Selection", path: "/plan-selection" },
+      { name: "Income Details", path: "/income-details" },
+      { name: "Education Details", path: "/education-details" },
+      { name: "Kids Details", path: "/kids-details" },
+      { name: "Summary Screen", path: "/summary-screen" },
+    ],
+  },
+    {
+    title: "Eligibility Determination",
+    icon: Users,
+    subsections: [{ name: "Determine Eligibility", path: "/determine-eligibility" }],
+  },
+  {
+    title: "Correspondence",
+    icon: Mail,
+    subsections: [
+      { name: "Correspondence", path: "/correspondence" },
+      { name: "Pending Notices", path: "/pending-notices" },
+      { name: "History Notices", path: "/history-notices" },
+    ],
+  },
+  { title: "My Benefits", icon: CreditCard, path: "/benefit-issuance" },
+   { title: "Reports", icon: BarChart, path: "/reports" },
+  
+];
+
 export default function Sidebar({ isOpen }) {
   const [openSection, setOpenSection] = useState(null);
+  const { user } = useSelector((state) => state.auth);
+
+  // Get role-based menu
+  const sections = user?.roleId === 1 ? adminSections : userSections;
 
   return (
     <aside
@@ -71,18 +122,20 @@ export default function Sidebar({ isOpen }) {
         isOpen ? "translate-x-0" : "-translate-x-64"
       }`}
     >
-      {/* Header */}
       <div className="p-4 border-b border-gray-200 flex items-center gap-2 bg-gray-50">
-        {/* <Home className="w-5 h-5 text-indigo-600" /> */}
-        <h2 className="text-lg font-semibold text-gray-700">Services</h2>
+        <h2 className="text-lg font-semibold text-gray-700">
+          {user?.roleId === 1 ? "Admin Panel" : "Services"}
+        </h2>
       </div>
 
-      {/* Sidebar Menu */}
       <nav className="p-3 overflow-y-auto h-[calc(100%-60px)]">
         {sections.map((section, i) => {
           const Icon = section.icon;
           const hasSub = section.subsections?.length > 0;
           const isSectionOpen = openSection === i;
+
+          // Replace :email placeholder with actual email
+          const sectionPath = section.path?.replace(":email", user?.email);
 
           const sectionContent = (
             <div
@@ -108,8 +161,8 @@ export default function Sidebar({ isOpen }) {
 
           return (
             <div key={section.title}>
-              {section.path ? (
-                <Link to={section.path} className="block">
+              {sectionPath ? (
+                <Link to={sectionPath} className="block">
                   {sectionContent}
                 </Link>
               ) : (
@@ -121,7 +174,6 @@ export default function Sidebar({ isOpen }) {
                 </button>
               )}
 
-              {/* Subsections */}
               {isSectionOpen && hasSub && (
                 <div className="pl-8 mt-1 space-y-1 transition-all duration-300">
                   {section.subsections.map((sub) => (

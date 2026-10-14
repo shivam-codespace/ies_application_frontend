@@ -1,21 +1,82 @@
-
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { toast } from "react-toastify";
+import {
+  CASE_KEY,
+  getErrorMessage,
+  getPlanNames,
+  getSummary,
+  saveSelectedPlan,
+} from "../../Services/Data Collection Service/dc-service";
+import { getAppsByUser } from "../../Services/Application Services/app-service";
 
 export default function PlanSelection() {
-  const [caseNumber, setCaseNumber] = useState("");
+  const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
+
+  const [caseNumber, setCaseNumber] = useState(
+    () => sessionStorage.getItem(CASE_KEY) || ""
+  );
+  const [cases, setCases] = useState([]);
   const [planName, setPlanName] = useState("");
+  const [plans, setPlans] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const plans = ["SNAP", "CCAP", "Medicaid", "Medicare", "QHP", "RIW"];
+  // Cases come from AR: admins get every application, caseworkers their own
+  useEffect(() => {
+    if (!user?.userId) return;
+    getAppsByUser(user.userId)
+      .then((data) => setCases(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        console.error("Error loading cases:", err);
+        toast.error("Failed to load applications");
+      });
+  }, [user?.userId]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!caseNumber || !planName) {
-      alert("Please fill all required fields.");
+  useEffect(() => {
+    getPlanNames()
+      .then((data) => setPlans(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        console.error("Error loading plans:", err);
+        toast.error(getErrorMessage(err, "Failed to load plans"));
+      });
+  }, []);
+
+  // Show the plan already chosen for this case, if any
+  useEffect(() => {
+    if (!caseNumber) {
+      setPlanName("");
       return;
     }
-    alert(`Plan Selected:\nCase Number: ${caseNumber}\nPlan: ${planName}`);
-    setCaseNumber("");
-    setPlanName("");
+    getSummary(caseNumber)
+      .then((data) => setPlanName(data?.planSelection?.planName || ""))
+      .catch(() => setPlanName(""));
+  }, [caseNumber]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!caseNumber || !planName) {
+      toast.error("Please select a case and a plan");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await saveSelectedPlan({
+        caseNo: parseInt(caseNumber, 10),
+        planName,
+      });
+      sessionStorage.setItem(CASE_KEY, caseNumber);
+      toast.success(response || "Plan selected successfully");
+      navigate("/income-details");
+    } catch (error) {
+      console.error("Error saving plan:", error);
+      toast.error(getErrorMessage(error, "Failed to save plan"));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -30,13 +91,18 @@ export default function PlanSelection() {
           <label className="block text-gray-700 font-medium mb-2">
             Case Number
           </label>
-          <input
-            type="text"
-            placeholder="Enter case number"
+          <select
             value={caseNumber}
             onChange={(e) => setCaseNumber(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-          />
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+          >
+            <option value="">Select Case</option>
+            {cases.map((app) => (
+              <option key={app.caseNum} value={String(app.caseNum)}>
+                {app.caseNum} — {app.fullname}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Plan Name */}
@@ -61,9 +127,10 @@ export default function PlanSelection() {
         {/* Submit Button */}
         <button
           type="submit"
-          className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition"
+          disabled={loading}
+          className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
-          Submit
+          {loading ? "Saving..." : "Save & Continue ➜"}
         </button>
       </form>
     </div>

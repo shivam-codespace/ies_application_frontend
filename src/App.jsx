@@ -1,10 +1,17 @@
 import { useState } from "react";
-import { Routes, Route } from "react-router-dom"; // ✅ Import Router components
+import { Routes, Route, Navigate } from "react-router-dom";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { useSelector } from "react-redux";
+
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
+import ProtectedRoute from "./components/ProtectedRoutes";
+
 import Dashboard from "./pages/Dashboard/Dashboard";
+import AdminDashboard from "./pages/Dashboard/AdminDashboard";
 import Login from "./pages/Login/Login";
-import CreateAccount from "./pages/Admin/CreateAccount"; // Example route page
+import CreateAccount from "./pages/Admin/CreateAccount";
 import ViewAccount from "./pages/Admin/ViewAccount";
 import CreatePlan from "./pages/Admin/CreatePlan";
 import ViewPlans from "./pages/Admin/ViewPlans";
@@ -21,52 +28,224 @@ import PendingNotices from "./pages/Correspondence/PendingNotices";
 import HistoryNotices from "./pages/Correspondence/HistoryNotices";
 import BenefitIssuance from "./pages/Benefit Issurance/BenefitIssurance";
 import Reports from "./pages/Reports/Reports";
+import UnlockAccount from "./components/UnlockAccount";
+import ProfilePage from "./pages/Profile/ProfilePage";
+import ForgetPassword from "./components/ForgetPassword";
 
 export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
+  const { isAuthenticated } = useSelector((state) => state.auth);
+
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      {/* ✅ Sidebar */}
-      <Sidebar isOpen={isSidebarOpen} />
+    <>
+      <ToastContainer position="top-right" autoClose={3000} theme="colored" />
 
-      {/* ✅ Main content area */}
-      <div
-        className={`flex-1 flex flex-col transition-all duration-300 ${
-          isSidebarOpen ? "md:ml-64" : "ml-0"
-        }`}
-      >
-        {/* ✅ Navbar */}
-        <Navbar toggleSidebar={toggleSidebar} />
+      <Routes>
+        {/* Public routes */}
+        <Route path="/" element={<Login />} />
+        <Route path="/unlock" element={<UnlockAccount />} />
+        <Route path="/recover-password" element={<ForgetPassword />} />
 
-        {/* ✅ Page Routes */}
-        <main className="flex-1 p-4">
-          <Routes>
-            
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/create-account" element={<CreateAccount />} />
-            <Route path="/view-account" element={<ViewAccount/>}/>
-            <Route path="/create-plan" element={<CreatePlan/>}/>
-            <Route path="/view-plan" element={<ViewPlans/>}/>
-            <Route path="/create-application" element={<CreateApplication/>}/>
-            <Route path="/view-application" element={<ViewApplication />} />
-            <Route path="/plan-selection" element={<PlanSelection />} />
-            <Route path="/income-details" element={<IncomeDetails />} />
-            <Route path="/education-details" element={<EducationDetails />} />
-            <Route path="/kids-details" element={<KidsDetails />} />
-            <Route path="/summary-screen" element={<SummaryScreen />} />
-            <Route path="/determine-eligibility" element={<DetermineEligibility />} />
-            <Route path="/correspondence" element={<Correspondence />} />
-            <Route path="/pending-notices" element={<PendingNotices />} />
-            <Route path="/history-notices" element={<HistoryNotices />} />
-            <Route path="/benefit-issuance" element={<BenefitIssuance />} />
-            <Route path="/reports" element={<Reports />} />
-          </Routes>
-        </main>
-      </div>
-    </div>
+        {/* Protected routes with layout */}
+        <Route
+          path="/*"
+          element={
+            isAuthenticated ? (
+              <div className="flex min-h-screen bg-gray-50">
+                <Sidebar isOpen={isSidebarOpen} />
+                <div
+                  className={`flex-1 flex flex-col transition-all duration-300 ${
+                    isSidebarOpen ? "md:ml-64" : "ml-0"
+                  }`}
+                >
+                  <Navbar toggleSidebar={toggleSidebar} />
+
+                  <main className="flex-1 p-4">
+                    <Routes>
+                      {/* Admin Dashboard */}
+                      <Route
+                        path="/admin/dashboard"
+                        element={
+                          <ProtectedRoute adminOnly>
+                            <AdminDashboard />
+                          </ProtectedRoute>
+                        }
+                      />
+
+                      {/* User Dashboard */}
+                      <Route
+                        path="/dashboard/:email"
+                        element={
+                          <ProtectedRoute userOnly>
+                            <Dashboard />
+                          </ProtectedRoute>
+                        }
+                      />
+
+                      {/* Profile (Both roles) */}
+                      <Route
+                        path="/profile"
+                        element={
+                          <ProtectedRoute>
+                            <ProfilePage />
+                          </ProtectedRoute>
+                        }
+                      />
+
+                      {/* Admin-only routes */}
+                      <Route
+                        path="/create-account"
+                        element={
+                          <ProtectedRoute adminOnly>
+                            <CreateAccount />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/view-account"
+                        element={
+                          <ProtectedRoute adminOnly>
+                            <ViewAccount />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/create-plan"
+                        element={
+                          <ProtectedRoute adminOnly>
+                            <CreatePlan />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/view-plan"
+                        element={
+                          <ProtectedRoute adminOnly>
+                            <ViewPlans />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/determine-eligibility"
+                        element={
+                          <ProtectedRoute adminOnly>
+                            <DetermineEligibility />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/correspondence"
+                        element={
+                          <ProtectedRoute adminOnly>
+                            <Correspondence />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/pending-notices"
+                        element={
+                          <ProtectedRoute adminOnly>
+                            <PendingNotices />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/history-notices"
+                        element={
+                          <ProtectedRoute adminOnly>
+                            <HistoryNotices />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/reports"
+                        element={
+                          <ProtectedRoute adminOnly>
+                            <Reports />
+                          </ProtectedRoute>
+                        }
+                      />
+
+                      {/* User routes (Data Collection) */}
+                      <Route
+                        path="/plan-selection"
+                        element={
+                          <ProtectedRoute >
+                            <PlanSelection />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/income-details"
+                        element={
+                          <ProtectedRoute >
+                            <IncomeDetails />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/education-details"
+                        element={
+                          <ProtectedRoute >
+                            <EducationDetails />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/kids-details"
+                        element={
+                          <ProtectedRoute >
+                            <KidsDetails />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/summary-screen"
+                        element={
+                          <ProtectedRoute >
+                            <SummaryScreen />
+                          </ProtectedRoute>
+                        }
+                      />
+
+                      {/* Shared routes (Both roles) */}
+                      <Route
+                        path="/create-application"
+                        element={
+                          <ProtectedRoute>
+                            <CreateApplication />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/view-application"
+                        element={
+                          <ProtectedRoute>
+                            <ViewApplication />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/benefit-issuance"
+                        element={
+                          <ProtectedRoute>
+                            <BenefitIssuance />
+                          </ProtectedRoute>
+                        }
+                      />
+                    </Routes>
+                  </main>
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+      </Routes>
+    </>
   );
 }
+

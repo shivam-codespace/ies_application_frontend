@@ -1,34 +1,69 @@
-
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import {
+  CASE_KEY,
+  getErrorMessage,
+  getSummary,
+  saveIncome,
+} from "../../Services/Data Collection Service/dc-service";
 
 export default function IncomeDetails() {
+  const navigate = useNavigate();
+  const caseNumber = sessionStorage.getItem(CASE_KEY) || "";
   const [formData, setFormData] = useState({
-    caseNumber: "123456",
-    monthlyIncome: "",
+    monthlySalaryIncome: "",
     rentIncome: "",
     propertyIncome: "",
   });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!caseNumber) {
+      toast.error("Please select a case in Plan Selection first.");
+      navigate("/plan-selection");
+      return;
+    }
+    // Prefill previously saved income so re-saving edits instead of starting over
+    getSummary(caseNumber)
+      .then((data) => {
+        const income = data?.income;
+        if (income) {
+          setFormData({
+            monthlySalaryIncome: income.monthlySalaryIncome ?? "",
+            rentIncome: income.rentIncome ?? "",
+            propertyIncome: income.propertyIncome ?? "",
+          });
+        }
+      })
+      .catch((err) => console.error("Error loading saved income:", err));
+  }, [caseNumber, navigate]);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert(`Income Details Submitted:
-    Case Number: ${formData.caseNumber}
-    Monthly Salary: ${formData.monthlyIncome}
-    Rent Income: ${formData.rentIncome}
-    Property Income: ${formData.propertyIncome}`);
-    setFormData({
-      ...formData,
-      monthlyIncome: "",
-      rentIncome: "",
-      propertyIncome: "",
-    });
+    setLoading(true);
+
+    const requestData = {
+      caseNo: parseInt(caseNumber, 10),
+      monthlySalaryIncome: parseFloat(formData.monthlySalaryIncome) || 0.0,
+      rentIncome: parseFloat(formData.rentIncome) || 0.0,
+      propertyIncome: parseFloat(formData.propertyIncome) || 0.0,
+    };
+
+    try {
+      const response = await saveIncome(requestData);
+      toast.success(response || "Income details saved successfully");
+      navigate("/education-details");
+    } catch (error) {
+      console.error("Error saving income:", error);
+      toast.error(getErrorMessage(error, "Failed to save income details"));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -45,8 +80,7 @@ export default function IncomeDetails() {
           </label>
           <input
             type="text"
-            name="caseNumber"
-            value={formData.caseNumber}
+            value={caseNumber}
             readOnly
             className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-100 cursor-not-allowed"
           />
@@ -60,11 +94,14 @@ export default function IncomeDetails() {
             </label>
             <input
               type="number"
-              name="monthlyIncome"
-              value={formData.monthlyIncome}
+              min="0"
+              step="0.01"
+              name="monthlySalaryIncome"
+              value={formData.monthlySalaryIncome}
               onChange={handleChange}
               placeholder="Enter monthly income"
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+              required
             />
           </div>
 
@@ -74,6 +111,8 @@ export default function IncomeDetails() {
             </label>
             <input
               type="number"
+              min="0"
+              step="0.01"
               name="rentIncome"
               value={formData.rentIncome}
               onChange={handleChange}
@@ -90,6 +129,8 @@ export default function IncomeDetails() {
           </label>
           <input
             type="number"
+            min="0"
+            step="0.01"
             name="propertyIncome"
             value={formData.propertyIncome}
             onChange={handleChange}
@@ -98,13 +139,23 @@ export default function IncomeDetails() {
           />
         </div>
 
-        {/* Submit Button */}
-        <button
-          type="submit"
-          className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition"
-        >
-          Submit
-        </button>
+        {/* Navigation */}
+        <div className="flex justify-between">
+          <button
+            type="button"
+            onClick={() => navigate("/plan-selection")}
+            className="border border-gray-300 hover:bg-gray-50 px-6 py-2 rounded-lg"
+          >
+            ← Back
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            {loading ? "Saving..." : "Save & Continue ➜"}
+          </button>
+        </div>
       </form>
     </div>
   );
